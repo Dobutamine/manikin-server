@@ -26,6 +26,7 @@ connectManikin = function () {
   // connect to the Teensy module inside the grey box
   connectTeensy();
 
+  startBreathing(60);
   // open the connection to the Phidgets of the manikin
   const conn = new phidget22.NetworkConnection(5661, "localhost");
 
@@ -100,6 +101,13 @@ setAirwayPatency = function (patency) {
 getAirwayPatency = function () {
   console.log(`MANIKIN: Returned airway patency.`);
   return airway_patency;
+};
+
+startBreathing = function (frequency) {
+  let interval = 60000 / frequency;
+  setInterval(() => {
+    writeTeensyCommand("A");
+  }, interval);
 };
 
 module.exports.connectManikin = connectManikin;

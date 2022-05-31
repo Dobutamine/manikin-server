@@ -32,8 +32,8 @@ readSerialPortData = (data) => {
   console.log(`Teensy data: ${data}`);
 };
 
-writeTeensyCommand = (teensy_command) => {
-  teensy_port.send(teensy_command);
+const writeTeensyCommand = function (teensy_command) {
+  teensy_port.write(teensy_command);
 };
 
 module.exports.connectTeensy = connectTeensy;
