@@ -1,5 +1,8 @@
 const { connectTeensy, writeTeensyCommand } = require("./teensy");
+const { Worker } = require("worker_threads");
+
 const phidget22 = require("phidget22");
+const { resolve } = require("path");
 
 var phidgets_found = false;
 var airway_pres_port = 5;
@@ -22,11 +25,10 @@ var acc_angular_x = 0;
 var acc_angular_y = 0;
 var acc_angular_z = 0;
 
-connectManikin = function () {
+const connectManikin = function () {
   // connect to the Teensy module inside the grey box
   connectTeensy();
 
-  startBreathing(60);
   // open the connection to the Phidgets of the manikin
   const conn = new phidget22.NetworkConnection(5661, "localhost");
 
@@ -75,16 +77,14 @@ connectManikin = function () {
       acc_angular_z = acceleration[2];
     };
 
-    try {
-      airwayPresSensor.open(2000);
-      stomachPresSensor.open(2000);
-      compPresSensor.open(2000);
-      gyroSensor.open(2000);
-      accSensor.open(2000);
-      phidgets_found = true;
-    } catch {
-      phidgets_found = false;
-    }
+    airwayPresSensor.open(2000);
+    stomachPresSensor.open(2000);
+    compPresSensor.open(2000);
+    gyroSensor.open(2000);
+    accSensor.open(2000);
+
+    phidgets_found = true;
+
     if (phidgets_found) {
       console.log(`Manikin connected!`);
     } else {
@@ -93,23 +93,45 @@ connectManikin = function () {
   });
 };
 
-setAirwayPatency = function (patency) {
+const setAirwayPatency = function (patency) {
   airway_patency = patency;
   console.log(`MANIKIN: Airway patency set to: ${patency}.`);
 };
 
-getAirwayPatency = function () {
+const getAirwayPatency = function () {
   console.log(`MANIKIN: Returned airway patency.`);
   return airway_patency;
 };
 
-startBreathing = function (frequency) {
+const startBreathing = function (frequency) {
   let interval = 60000 / frequency;
   setInterval(() => {
     writeTeensyCommand("A");
+    0;
   }, interval);
 };
+
+const playSoundService = new Worker("./soundplayer.js", {
+  workerData: { freq: 60 },
+});
+
+const updateHeartbeat = function (new_hr) {
+  playSoundService.postMessage({
+    command: "play_hb_normal",
+    param: parseInt(new_hr),
+  });
+};
+
+const playBreathSound = function (bs) {
+  playSoundService.postMessage({
+    command: "play_bs_normal",
+    param: 0,
+  });
+};
+playSoundService.on("exit", (e) => console.log("sound player ready"));
 
 module.exports.connectManikin = connectManikin;
 module.exports.setAirwayPatency = setAirwayPatency;
 module.exports.getAirwayPatency = getAirwayPatency;
+module.exports.updateHeartbeat = updateHeartbeat;
+module.exports.playBreathSound = playBreathSound;
