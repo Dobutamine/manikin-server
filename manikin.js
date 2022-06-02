@@ -2,9 +2,9 @@ const { connectTeensy, writeTeensyCommand } = require("./teensy");
 const { Worker } = require("worker_threads");
 
 const phidget22 = require("phidget22");
-const { resolve } = require("path");
 
-var phidgets_found = false;
+const _ = require("lodash");
+
 var airway_pres_port = 5;
 var stomach_pres_port = 0;
 var comp_pressure_port = 1;
@@ -12,8 +12,9 @@ var gyro_port = 4;
 var acc_port = 4;
 
 var airway_pressure = 0;
+var voltage_pressure_conversion = 1.0;
 var airway_status = false;
-var airway_patency = true;
+
 var stomach_pressure = 0;
 var comp_pressure = 0;
 
@@ -24,6 +25,11 @@ var gyro_angular_z = 0;
 var acc_angular_x = 0;
 var acc_angular_y = 0;
 var acc_angular_z = 0;
+var optimal_position = 0.09;
+var optimal_position_delta = 5.5;
+var airway_patency = true;
+var airway_factor = 1.0;
+var airway_override = 0;
 
 var crying_sound = "crying_1";
 var grunting_sound = "grunting_1";
@@ -33,10 +39,12 @@ var inspiration_sound = "insp_normal";
 var expiration_sound = "exp_normal";
 var expiration_timer;
 var breath_duration = 800;
+var spont_respiration_blocked = false;
 
 var heartbeat_timer;
 var heartbeat_sound = "heartbeat_normal";
 
+// define a sound service
 const playSoundService = new Worker("./soundplayer.js");
 
 const connectManikin = function () {
@@ -48,15 +56,16 @@ const connectManikin = function () {
 
   conn.connect().then((phidget) => {
     // connect all the sensors
-    const airwayPresSensor = new phidget22.VoltageInput();
+    const airwayPresSensor = new phidget22.VoltageRatioInput();
+
     airwayPresSensor.setIsHubPortDevice(true);
     airwayPresSensor.setHubPort(airway_pres_port);
 
-    const stomachPresSensor = new phidget22.VoltageInput();
+    const stomachPresSensor = new phidget22.VoltageRatioInput();
     stomachPresSensor.setIsHubPortDevice(true);
     stomachPresSensor.setHubPort(stomach_pres_port);
 
-    const compPresSensor = new phidget22.VoltageInput();
+    const compPresSensor = new phidget22.VoltageRatioInput();
     compPresSensor.setIsHubPortDevice(true);
     compPresSensor.setHubPort(comp_pressure_port);
 
@@ -66,17 +75,16 @@ const connectManikin = function () {
     const accSensor = new phidget22.Accelerometer();
     accSensor.setHubPort(acc_port);
 
-    // handle the sensor changes
-    airwayPresSensor.onVoltageChange = (voltage) => {
-      airway_pressure = voltage;
+    airwayPresSensor.onSensorChange = (sensorValue) => {
+      airway_pressure = sensorValue * 10.1972; // convert kPa to cmH2O
     };
 
-    stomachPresSensor.onVoltageChange = (voltage) => {
-      stomach_pressure = voltage;
+    stomachPresSensor.onSensorChange = (sensorValue) => {
+      stomach_pressure = sensorValue * 10.1972; // convert kPa to cmH2o
     };
 
-    compPresSensor.onVoltageChange = (voltage) => {
-      comp_pressure = voltage;
+    compPresSensor.onSensorChange = (sensorValue) => {
+      comp_pressure = sensorValue;
     };
 
     gyroSensor.onAngularRateUpdate = (angularRate, timestamp) => {
@@ -85,29 +93,48 @@ const connectManikin = function () {
       gyro_angular_z = angularRate[2];
     };
 
-    accSensor.onAngularRateUpdate = (acceleration, timestamp) => {
+    accSensor.onAccelerationChange = (acceleration, timestamp) => {
       acc_angular_x = acceleration[0];
       acc_angular_y = acceleration[1];
       acc_angular_z = acceleration[2];
+      airway_patency = true;
+      airway_factor =
+        1.0 -
+        Math.abs(acc_angular_z - optimal_position) * optimal_position_delta;
+      if (airway_factor < 0) {
+        airway_factor = 0;
+        airway_patency = false;
+      }
     };
 
     // first connect the airway sensor
-    airwayPresSensor.open(2000);
-    compPresSensor.open(2000);
+    airwayPresSensor.open(2000).then(() => {
+      airwayPresSensor.setSensorType(phidget22.VoltageRatioSensorType.PN_1137); //+-7kPa sensor 1137
+      airwayPresSensor.setDataInterval(50);
+    });
+    stomachPresSensor.open(2000).then(() => {
+      stomachPresSensor.setSensorType(phidget22.VoltageRatioSensorType.PN_1137);
+      stomachPresSensor.setDataInterval(150);
+    });
+    compPresSensor.open(2000).then(() => {
+      compPresSensor.setSensorType(phidget22.VoltageRatioSensorType.PN_1131); // Thinforce sensor
+      compPresSensor.setDataInterval(50);
+    });
     gyroSensor.open(2000);
     accSensor.open(2000);
   });
 };
 
+// BREAHTING
 const setSpontBreathing = function (spont_resp_rate) {
   if (spont_resp_rate > 0) {
     clearInterval(spontaneous_breathing_timer);
     spontaneous_breathing_timer = setInterval(() => {
-      inspiration();
+      spontInspiration();
       // start timeout for expiration
       clearTimeout(expiration_timer);
       expiration_timer = setTimeout(() => {
-        expiration();
+        spontExpiration();
       }, breath_duration);
     }, 60000 / parseInt(spont_resp_rate));
   } else {
@@ -116,18 +143,45 @@ const setSpontBreathing = function (spont_resp_rate) {
   }
 };
 
-const inspiration = function () {
+const spontInspiration = function () {
+  if (!spont_respiration_blocked) {
+    // start inspiration on the manikin by sending the A command to the Teensy
+    writeTeensyCommand("A");
+    // play the breath inspiration sound
+    playSoundService.postMessage({
+      command: "breath",
+      type: inspiration_sound,
+      param: 0,
+    });
+  }
+};
+
+const spontExpiration = function () {
+  if (!spont_respiration_blocked) {
+    // start the expiration on the manikin by sending the B command to the Teensy
+    writeTeensyCommand("B");
+    // play the breath expiration sound
+    playSoundService.postMessage({
+      command: "breath",
+      type: expiration_sound,
+      param: 0,
+    });
+  }
+};
+
+const artInspiration = _.debounce(function () {
+  spont_respiration_blocked = true;
   // start inspiration on the manikin by sending the A command to the Teensy
-  writeTeensyCommand("A");
+  writeTeensyCommand("C");
   // play the breath inspiration sound
   playSoundService.postMessage({
     command: "breath",
     type: inspiration_sound,
     param: 0,
   });
-};
+}, 250);
 
-const expiration = function () {
+const artExpiration = _.debounce(function () {
   // start the expiration on the manikin by sending the B command to the Teensy
   writeTeensyCommand("B");
   // play the breath expiration sound
@@ -136,25 +190,24 @@ const expiration = function () {
     type: expiration_sound,
     param: 0,
   });
-};
+}, 250);
 
-const setHeartrate = function (new_hr) {
+// HEARTRATE
+function setHeartrate(new_hr) {
   if (new_hr > 0) {
     clearInterval(heartbeat_timer);
     heartbeat_timer = setInterval(heartbeat, 60000 / new_hr);
   }
-};
+}
 
-const heartbeat = function () {
+function heartbeat() {
   // play the heartbeat sound
   playSoundService.postMessage({
     command: "heartbeat",
     type: heartbeat_sound,
     param: 0,
   });
-};
-
-playSoundService.on("exit", (e) => console.log("sound player disconnected"));
+}
 
 module.exports.connectManikin = connectManikin;
 module.exports.setSpontBreathing = setSpontBreathing;
