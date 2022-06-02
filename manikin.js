@@ -25,14 +25,17 @@ var acc_angular_x = 0;
 var acc_angular_y = 0;
 var acc_angular_z = 0;
 
-var inspiration_sound = "insp_normal";
-var expiration_sound = "exp_normal";
-var heartbeat_sound = "heartbeat_normal";
 var crying_sound = "crying_1";
 var grunting_sound = "grunting_1";
+
 var spontaneous_breathing_timer;
+var inspiration_sound = "insp_normal";
+var expiration_sound = "exp_normal";
 var expiration_timer;
 var breath_duration = 800;
+
+var heartbeat_timer;
+var heartbeat_sound = "heartbeat_normal";
 
 const playSoundService = new Worker("./soundplayer.js");
 
@@ -96,7 +99,7 @@ const connectManikin = function () {
   });
 };
 
-const spontaneousBreathing = function (spont_resp_rate) {
+const setSpontBreathing = function (spont_resp_rate) {
   if (spont_resp_rate > 0) {
     clearInterval(spontaneous_breathing_timer);
     spontaneous_breathing_timer = setInterval(() => {
@@ -135,16 +138,24 @@ const expiration = function () {
   });
 };
 
-const heartbeat = function (new_hr) {
+const setHeartrate = function (new_hr) {
+  if (new_hr > 0) {
+    clearInterval(heartbeat_timer);
+    heartbeat_timer = setInterval(heartbeat, 60000 / new_hr);
+  }
+};
+
+const heartbeat = function () {
+  // play the heartbeat sound
   playSoundService.postMessage({
     command: "heartbeat",
     type: heartbeat_sound,
-    param: parseInt(new_hr),
+    param: 0,
   });
 };
 
 playSoundService.on("exit", (e) => console.log("sound player disconnected"));
 
 module.exports.connectManikin = connectManikin;
-module.exports.spontaneousBreathing = spontaneousBreathing;
-module.exports.heartbeat = heartbeat;
+module.exports.setSpontBreathing = setSpontBreathing;
+module.exports.setHeartrate = setHeartrate;

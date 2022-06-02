@@ -1,7 +1,7 @@
 const {
   connectManikin,
-  spontaneousBreathing,
-  heartbeat,
+  setSpontBreathing,
+  setHeartrate,
 } = require("./manikin");
 
 const http = require("http");
@@ -31,10 +31,10 @@ handleWebsocketCommands = (ws, message) => {
   let param = message["param"];
   switch (command) {
     case "set_spont_rr":
-      spontaneousBreathing(parseInt(param));
+      setSpontBreathing(parseInt(param));
       break;
     case "set_hr":
-      heartbeat(parseInt(param));
+      setHeartrate(parseInt(param));
       break;
   }
 };

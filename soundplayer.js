@@ -2,15 +2,10 @@ const { parentPort } = require("worker_threads");
 
 const player = require("play-sound")((opts = {}));
 
-var hr_timer;
-
 parentPort.on("message", (mes) => {
   switch (mes["command"]) {
     case "heartbeat":
-      if (mes["param"] > 1) {
-        clearInterval(hr_timer);
-        hr_timer = setInterval(playHeartbeatNormal, 60000 / mes["param"]);
-      }
+      playHeartbeat(mes["type"]);
       break;
 
     case "breath":
@@ -27,8 +22,8 @@ parentPort.on("message", (mes) => {
   }
 });
 
-const playHeartbeatNormal = function () {
-  player.play("./sounds/heartbeat_normal.mp3");
+const playHeartbeat = function (type) {
+  player.play("./sounds/hb_normal.mp3");
 };
 
 const playBreathSound = function (type) {
