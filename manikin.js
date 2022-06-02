@@ -25,6 +25,17 @@ var acc_angular_x = 0;
 var acc_angular_y = 0;
 var acc_angular_z = 0;
 
+var inspiration_sound = "insp_normal";
+var expiration_sound = "exp_normal";
+var heartbeat_sound = "heartbeat_normal";
+var crying_sound = "crying_1";
+var grunting_sound = "grunting_1";
+var spontaneous_breathing_timer;
+var expiration_timer;
+var breath_duration = 800;
+
+const playSoundService = new Worker("./soundplayer.js");
+
 const connectManikin = function () {
   // connect to the Teensy module inside the grey box
   connectTeensy();
@@ -77,61 +88,63 @@ const connectManikin = function () {
       acc_angular_z = acceleration[2];
     };
 
+    // first connect the airway sensor
     airwayPresSensor.open(2000);
-    stomachPresSensor.open(2000);
     compPresSensor.open(2000);
     gyroSensor.open(2000);
     accSensor.open(2000);
-
-    phidgets_found = true;
-
-    if (phidgets_found) {
-      console.log(`Manikin connected!`);
-    } else {
-      console.log(`Manikin not connected!`);
-    }
   });
 };
 
-const setAirwayPatency = function (patency) {
-  airway_patency = patency;
-  console.log(`MANIKIN: Airway patency set to: ${patency}.`);
+const spontaneousBreathing = function (spont_resp_rate) {
+  if (spont_resp_rate > 0) {
+    clearInterval(spontaneous_breathing_timer);
+    spontaneous_breathing_timer = setInterval(() => {
+      inspiration();
+      // start timeout for expiration
+      clearTimeout(expiration_timer);
+      expiration_timer = setTimeout(() => {
+        expiration();
+      }, breath_duration);
+    }, 60000 / parseInt(spont_resp_rate));
+  } else {
+    clearInterval(spontaneous_breathing_timer);
+    expiration();
+  }
 };
 
-const getAirwayPatency = function () {
-  console.log(`MANIKIN: Returned airway patency.`);
-  return airway_patency;
-};
-
-const startBreathing = function (frequency) {
-  let interval = 60000 / frequency;
-  setInterval(() => {
-    writeTeensyCommand("A");
-    0;
-  }, interval);
-};
-
-const playSoundService = new Worker("./soundplayer.js", {
-  workerData: { freq: 60 },
-});
-
-const updateHeartbeat = function (new_hr) {
+const inspiration = function () {
+  // start inspiration on the manikin by sending the A command to the Teensy
+  writeTeensyCommand("A");
+  // play the breath inspiration sound
   playSoundService.postMessage({
-    command: "play_hb_normal",
+    command: "breath",
+    type: inspiration_sound,
+    param: 0,
+  });
+};
+
+const expiration = function () {
+  // start the expiration on the manikin by sending the B command to the Teensy
+  writeTeensyCommand("B");
+  // play the breath expiration sound
+  playSoundService.postMessage({
+    command: "breath",
+    type: expiration_sound,
+    param: 0,
+  });
+};
+
+const heartbeat = function (new_hr) {
+  playSoundService.postMessage({
+    command: "heartbeat",
+    type: heartbeat_sound,
     param: parseInt(new_hr),
   });
 };
 
-const playBreathSound = function (bs) {
-  playSoundService.postMessage({
-    command: "play_bs_normal",
-    param: 0,
-  });
-};
-playSoundService.on("exit", (e) => console.log("sound player ready"));
+playSoundService.on("exit", (e) => console.log("sound player disconnected"));
 
 module.exports.connectManikin = connectManikin;
-module.exports.setAirwayPatency = setAirwayPatency;
-module.exports.getAirwayPatency = getAirwayPatency;
-module.exports.updateHeartbeat = updateHeartbeat;
-module.exports.playBreathSound = playBreathSound;
+module.exports.spontaneousBreathing = spontaneousBreathing;
+module.exports.heartbeat = heartbeat;

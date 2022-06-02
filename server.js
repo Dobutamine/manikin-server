@@ -1,9 +1,7 @@
 const {
   connectManikin,
-  getAirwayPatency,
-  setAirwayPatency,
-  updateHeartbeat,
-  playBreathSound,
+  spontaneousBreathing,
+  heartbeat,
 } = require("./manikin");
 
 const http = require("http");
@@ -28,12 +26,15 @@ wss.on("connection", (ws) => {
 });
 
 handleWebsocketCommands = (ws, message) => {
-  switch (message["command"]) {
-    case "play_hb":
-      updateHeartbeat(message["param"]);
+  let command = message["command"];
+  let type = message["type"];
+  let param = message["param"];
+  switch (command) {
+    case "set_spont_rr":
+      spontaneousBreathing(parseInt(param));
       break;
-    case "play_bs":
-      playBreathSound(message["param"]);
+    case "set_hr":
+      heartbeat(parseInt(param));
       break;
   }
 };
