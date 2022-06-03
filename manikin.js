@@ -1,5 +1,5 @@
 const { connectTeensy, writeTeensyCommand } = require("./teensy");
-const { Worker } = require("worker_threads");
+const { Worker, parentPort } = require("worker_threads");
 
 const phidget22 = require("phidget22");
 
@@ -30,6 +30,9 @@ var optimal_position_delta = 5.5;
 var airway_patency = true;
 var airway_factor = 1.0;
 var airway_override = 0;
+var airway_pressure_threshold = 10.0;
+var art_inspiration = false;
+var art_expiration = true;
 
 var crying_sound = "crying_1";
 var grunting_sound = "grunting_1";
@@ -46,6 +49,23 @@ var heartbeat_sound = "heartbeat_normal";
 
 // define a sound service
 const playSoundService = new Worker("./soundplayer.js");
+
+parentPort.on("message", (message) => {
+  switch (message["command"]) {
+    case "connect":
+      connectManikin();
+      break;
+    case "set_spont_rr":
+      setSpontBreathing(parseInt(message["param"]));
+      break;
+    case "set_hr":
+      setHeartrate(parseInt(message["param"]));
+      break;
+    case "set_awor":
+      setAirwayOverride(parseInt(message["param"]));
+  }
+  console.log(message);
+});
 
 const connectManikin = function () {
   // connect to the Teensy module inside the grey box
@@ -77,6 +97,40 @@ const connectManikin = function () {
 
     airwayPresSensor.onSensorChange = (sensorValue) => {
       airway_pressure = sensorValue * 10.1972; // convert kPa to cmH2O
+      switch (airway_override) {
+        case 0: // automatic mode
+          if (
+            (airway_pressure > airway_pressure_threshold) &
+            (art_expiration == true) &
+            (airway_patency == true)
+          ) {
+            art_inspiration = true;
+            art_expiration = false;
+            artInspiration();
+          }
+          break;
+        case 1: // always open
+          if (
+            (airway_pressure > airway_pressure_threshold) &
+            (art_expiration == true)
+          ) {
+            art_inspiration = true;
+            art_expiration = false;
+            artInspiration();
+          }
+          break;
+        case 2: // always closed
+          break;
+      }
+
+      if (
+        (airway_pressure < airway_pressure_threshold) &
+        (art_inspiration == true)
+      ) {
+        art_inspiration = false;
+        art_expiration = true;
+        artExpiration();
+      }
     };
 
     stomachPresSensor.onSensorChange = (sensorValue) => {
@@ -123,6 +177,10 @@ const connectManikin = function () {
     gyroSensor.open(2000);
     accSensor.open(2000);
   });
+};
+
+const setAirwayOverride = function (setting) {
+  airway_override = setting;
 };
 
 // BREAHTING
@@ -182,6 +240,8 @@ const artInspiration = _.debounce(function () {
 }, 250);
 
 const artExpiration = _.debounce(function () {
+  // unblock spontaneous breathing
+  spont_respiration_blocked = false;
   // start the expiration on the manikin by sending the B command to the Teensy
   writeTeensyCommand("B");
   // play the breath expiration sound
@@ -209,6 +269,10 @@ function heartbeat() {
   });
 }
 
-module.exports.connectManikin = connectManikin;
-module.exports.setSpontBreathing = setSpontBreathing;
-module.exports.setHeartrate = setHeartrate;
+function returnData() {
+  return JSON.stringify({
+    ap: airway_pressure,
+    cp: comp_pressure,
+    aw_pos: airway_factor,
+  });
+}
