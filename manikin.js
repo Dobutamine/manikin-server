@@ -64,10 +64,8 @@ parentPort.on("message", (message) => {
       break;
     case "set_sound":
       expiration_sound_type = parseInt(message["param"]);
-      console.log(expiration_sound_type);
       break;
   }
-  console.log(message);
 });
 
 const connectManikin = function () {
