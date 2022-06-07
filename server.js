@@ -193,7 +193,6 @@ handleWebsocketCommands = (ws, message) => {
         mon_config.nibdEnabled = data.nibdEnabled;
         mon_config.nibdAlarmEnabled = data.nibdAlarmEnabled;
         mon_config.alarmOverride = data.alarmOverride;
-        vitals.configChange = true;
       }
       break;
 
