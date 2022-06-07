@@ -5,15 +5,21 @@ const express = require("express");
 const { WebSocket } = require("ws");
 const { parseInt } = require("lodash");
 const { stringify } = require("querystring");
+const { config } = require("process");
 
 const app = express();
 const manikin_server_port = 3001;
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+const status = {
+  target: "status",
+  message: "",
+};
 const vitals = {
+  target: "vitals",
   hr: 130,
-  spo2_pre: 97,
+  spo2_pre: 82,
   spo2_post: 95,
   abp_syst: 60,
   abp_diast: 40,
@@ -63,6 +69,7 @@ const mon_config = {
 };
 
 const labs = {
+  target: "labs",
   natrium: 140,
   kalium: 4.5,
 };
@@ -78,7 +85,9 @@ wss.on("connection", (ws) => {
     handleWebsocketCommands(ws, message);
   });
   console.log(`New connection accepted!`);
-  ws.send("Hi from the manikin server!");
+  let message = {};
+  status.message = "Hi from the manikin server";
+  ws.send(JSON.stringify(status));
 });
 
 handleWebsocketCommands = (ws, message) => {
@@ -121,17 +130,6 @@ handleWebsocketCommands = (ws, message) => {
       break;
   }
 };
-
-// define a manikin service
-const manikin = new Worker("./manikin.js");
-
-// connect to the Manikin
-manikin.postMessage({ command: "connect", param: 0 });
-
-// attach an event handler to catch messages from manikin worker process
-manikin.on("message", (message) => {
-  console.log(message);
-});
 
 // Spin up the server
 server.listen(manikin_server_port, () => {
