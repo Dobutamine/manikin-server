@@ -19,14 +19,11 @@ const status = {
 const vitals = {
   target: "vitals",
   hr: 130,
-  spo2_pre: 82,
+  spo2_pre: 97,
   spo2_post: 95,
   abp_syst: 60,
   abp_diast: 40,
-  nibd_syst: 60,
-  nibd_diast: 40,
-  resp_rate: 45,
-  spont_resp_rate: 40,
+  resp_rate: 40,
   temp: 37.0,
   etco2: 4.5,
   pfi: 1.6,
@@ -100,6 +97,8 @@ handleWebsocketCommands = (ws, message) => {
         ws.send(JSON.stringify(vitals));
       }
       if (command == "set") {
+        // set the resprate and heart rate on the manikin
+        console.log(data);
       }
       break;
 

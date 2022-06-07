@@ -34,9 +34,6 @@ var airway_pressure_threshold = 10.0;
 var art_inspiration = false;
 var art_expiration = true;
 
-var crying_sound = "crying_1";
-var grunting_sound = "grunting_1";
-
 var spontaneous_breathing_timer;
 var inspiration_sound = "insp_normal";
 var expiration_sound = "exp_normal";
@@ -44,6 +41,7 @@ var expiration_timer;
 var breath_duration = 800;
 var spont_respiration_blocked = false;
 
+var expiration_sound_type = 0;
 var heartbeat_timer;
 var heartbeat_sound = "heartbeat_normal";
 
@@ -63,6 +61,11 @@ parentPort.on("message", (message) => {
       break;
     case "set_awor":
       setAirwayOverride(parseInt(message["param"]));
+      break;
+    case "set_sound":
+      expiration_sound_type = parseInt(message["param"]);
+      console.log(expiration_sound_type);
+      break;
   }
   console.log(message);
 });
@@ -219,6 +222,29 @@ const spontExpiration = function () {
     // start the expiration on the manikin by sending the B command to the Teensy
     writeTeensyCommand("B");
     // play the breath expiration sound
+    switch (expiration_sound_type) {
+      case 0: // normal breath sound
+        playSoundService.postMessage({
+          command: "breath",
+          type: expiration_sound,
+          param: 0,
+        });
+        break;
+      case 1: // crying
+        playSoundService.postMessage({
+          command: "cry",
+          type: expiration_sound,
+          param: 0,
+        });
+        break;
+      case 2: // grunting
+        playSoundService.postMessage({
+          command: "grunt",
+          type: expiration_sound,
+          param: 0,
+        });
+        break;
+    }
     playSoundService.postMessage({
       command: "breath",
       type: expiration_sound,

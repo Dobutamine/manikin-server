@@ -12,11 +12,11 @@ parentPort.on("message", (mes) => {
       playBreathSound(mes["type"]);
       break;
 
-    case "play_crying":
+    case "cry":
       playCrying();
       break;
 
-    case "play_grunting":
+    case "grunt":
       playGrunting();
       break;
   }
@@ -32,15 +32,15 @@ const playBreathSound = function (type) {
       player.play("./sounds/bs_inspiration.mp3");
       break;
     case "exp_normal":
-      player.play("./sounds/bs_expiration.mp3");
+      // player.play("./sounds/bs_expiration.mp3");
       break;
   }
 };
 
 const playCrying = function () {
-  player.play("crying.wav");
+  player.play("./sounds/crying.mp3");
 };
 
 const playGrunting = function () {
-  player.play("grunting.wav");
+  player.play("./sounds/grunting.mp3");
 };
