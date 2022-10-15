@@ -11,7 +11,7 @@ const manikin_server_port = 3001;
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const performanceData = {
+let performanceData = {
   pip: 0,
   peep: 0,
   aw: 0,
@@ -22,12 +22,12 @@ const performanceData = {
   comp_release: 0,
 };
 
-const statusData = {
+let statusData = {
   manikin: false,
   breathing: false,
 };
 
-const vitals = {
+let vitals = {
   hr: 130,
   spo2_pre: 97,
   spo2_post: 95,
@@ -39,7 +39,7 @@ const vitals = {
   pfi: 1.6,
 };
 
-const mon_config = {
+let mon_config = {
   target: "config",
   hrEnabled: true,
   hrAlarmEnabled: false,
@@ -74,12 +74,12 @@ const mon_config = {
   alarmOverride: false,
 };
 
-const labs = {
+let labs = {
   natrium: 140,
   kalium: 4.5,
 };
 
-const media = {};
+let media = {};
 
 var current_ip = ip.address();
 

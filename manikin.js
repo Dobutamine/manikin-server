@@ -242,48 +242,77 @@ const connect = function () {
       };
 
       // connect the airway pressure sensor
-      airwayPresSensor.open(2000).then(() => {
-        console.log("Airway pressure sensor online.");
-        airwayPresSensor.setSensorType(
-          phidget22.VoltageRatioSensorType.PN_1137
-        ); //+-7kPa sensor 1137
-        airwayPresSensor.setDataInterval(50);
+      airwayPresSensor
+        .open(2000)
+        .then(() => {
+          console.log("Manikin module: airway pressure sensor online.");
+          airwayPresSensor.setSensorType(
+            phidget22.VoltageRatioSensorType.PN_1137
+          ); //+-7kPa sensor 1137
+          airwayPresSensor.setDataInterval(50);
 
-        // start the pressure reporter
-        setInterval(reportPressures, reporterInterval);
-      });
+          // start the pressure reporter
+          setInterval(reportPressures, reporterInterval);
+        })
+        .catch(() => {
+          console.log("Manikin module: airway pressure sensor failed.");
+        });
 
       // connect the stomach pressure sensor
-      stomachPresSensor.open(2000).then(() => {
-        console.log("Stomach pressure sensor online.");
-        stomachPresSensor.setSensorType(
-          phidget22.VoltageRatioSensorType.PN_1137
-        );
-        stomachPresSensor.setDataInterval(50);
-      });
+      stomachPresSensor
+        .open(2000)
+        .then(() => {
+          console.log("Manikin module: stomach pressure sensor online.");
+          stomachPresSensor.setSensorType(
+            phidget22.VoltageRatioSensorType.PN_1137
+          );
+          stomachPresSensor.setDataInterval(50);
+        })
+        .catch(() => {
+          console.log("Manikin module: stomach pressure sensor failed.");
+        });
 
       // connect the compression pressure sensor
-      compPresSensor.open(2000).then(() => {
-        console.log("Compressions pressure sensor online.");
-        compPresSensor.setSensorType(phidget22.VoltageRatioSensorType.PN_1131); // Thinforce sensor
-        compPresSensor.setDataInterval(50);
-      });
+      compPresSensor
+        .open(2000)
+        .then(() => {
+          console.log("Manikin module: compressions pressure sensor online.");
+          compPresSensor.setSensorType(
+            phidget22.VoltageRatioSensorType.PN_1131
+          ); // Thinforce sensor
+          compPresSensor.setDataInterval(50);
+        })
+        .catch(() => {
+          console.log("Manikin module: compressions pressure sensor failed.");
+        });
 
       // connect the gyro sensor
-      gyroSensor.open(2000).then(() => {
-        gyroSensor.setDataInterval(100);
-        console.log("Head gyro sensor online.");
-      });
+      gyroSensor
+        .open(2000)
+        .then(() => {
+          gyroSensor.setDataInterval(100);
+          console.log("Manikin module: head gyro sensor online.");
+        })
+        .catch(() => {
+          console.log("Manikin module: head gyro pressure sensor failed.");
+        });
 
       // connect the acceleration sensor
-      accSensor.open(2000).then(() => {
-        accSensor.setDataInterval(100);
-        console.log("Head acceleration sensor online.");
-      });
+      accSensor
+        .open(2000)
+        .then(() => {
+          accSensor.setDataInterval(100);
+          console.log("Manikin module: head acceleration sensor online.");
+        })
+        .catch(() => {
+          console.log("Manikin module: head acceleration sensor failed.");
+        });
     })
     .catch(() => {
-      console.log("Manikin connection failed! Reconnecting....");
-      connect();
+      console.log("Manikin connection failed! Reconnecting in 5 seconds.");
+      setTimeout(() => {
+        connect();
+      }, 5000);
     });
 };
 

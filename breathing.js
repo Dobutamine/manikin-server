@@ -88,15 +88,39 @@ const connect = function () {
       rightLung.setHubPort(breathingRelayPort);
       rightLung.setChannel(2);
 
-      stomach.open(2000).then(() => {
-        console.log("Stomach valve online.");
-      });
-      leftLung.open(2000).then(() => {
-        console.log("Left lung valve online.");
-      });
-      rightLung.open(2000).then(() => {
-        console.log("Right lung valve online.");
-      });
+      stomach
+        .open(2000)
+        .then(() => {
+          console.log("Breathing module: stomach valve online.");
+        })
+        .catch(() => {
+          console.log("Breathing module: stomach valve failed.");
+        });
+
+      leftLung
+        .open(2000)
+        .then(() => {
+          console.log("Breathing module: left lung valve online.");
+        })
+        .catch(() => {
+          console.log("Breathing module: left lung valve failed.");
+        });
+
+      rightLung
+        .open(2000)
+        .then(() => {
+          console.log("Breathing module: right lung valve online.");
+        })
+        .catch(() => {
+          console.log("Breathing module: right lung valve failed.");
+        });
     })
-    .catch(() => console.log("Breathing module connection failed!"));
+    .catch(() => {
+      console.log(
+        "Breathing module connection failed! Reconnecting in 5 seconds."
+      );
+      setTimeout(() => {
+        connect();
+      }, 5000);
+    });
 };
