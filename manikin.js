@@ -3,7 +3,7 @@ const { Worker, parentPort, postMessage } = require("worker_threads");
 const phidget22 = require("phidget22");
 
 const _ = require("lodash");
-const { chain } = require("lodash");
+//const { chain } = require("lodash");
 
 const ipManikinModule = "192.168.8.7";
 
@@ -48,10 +48,35 @@ var expiration_sound_type = 0;
 var heartbeat_timer;
 var heartbeat_sound = "heartbeat_normal";
 
+var temp_max_pressure = 0;
+var pip = 0;
+var temp_min_pressure = 0;
+var peep = 0;
+
+var temp_max_abd = 0;
+var pip_abd = 0;
+var temp_min_abd = 0;
+var peep_abd = 0;
+
+var temp_max_comp = 0;
+var max_comp = 0;
+var temp_min_comp = 0;
+var min_comp = 0;
+var reporterInterval = 2500;
+
+let performanceData = {
+  pip: 0,
+  peep: 0,
+  aw: 0,
+  ap: false,
+  pip_abd: 0,
+  peep_abd: 0,
+  comp_pres: 0,
+  comp_release: 0,
+};
 // define a sound service
 const playSoundService = new Worker("./soundplayer.js");
 
-//
 parentPort.on("message", (message) => {
   switch (message["command"]) {
     case "connect":
@@ -72,9 +97,40 @@ parentPort.on("message", (message) => {
   }
 });
 
+const reportPressures = function () {
+  pip = parseInt(temp_max_pressure);
+  temp_max_pressure = -1000;
+  peep = parseInt(temp_min_pressure);
+  temp_min_pressure = 1000;
+
+  max_comp = parseInt(temp_max_comp);
+  temp_max_comp = -1000;
+  min_comp = parseInt(temp_min_comp);
+  temp_min_comp = 1000;
+
+  pip_abd = parseInt(temp_max_abd);
+  temp_max_abd = -1000;
+  peep_abd = parseInt(temp_min_abd);
+  temp_min_abd = 1000;
+
+  let aw = parseInt(airway_factor * 100);
+
+  performanceData.pip = pip;
+  performanceData.peep = peep;
+  performanceData.aw = aw;
+  performanceData.ap = airway_patency;
+  performanceData.pip_abd = pip_abd;
+  performanceData.peep_abd = peep_abd;
+  performanceData.max_comp = max_comp;
+  performanceData.min_comp = min_comp;
+
+  // send the performance data to the server
+  parentPort.postMessage({ command: "status", param: performanceData });
+};
+
 const connect = function () {
   // open the connection to the Phidgets of the manikin
-  const conn = new phidget22.NetworkConnection(5661, "192.168.8.7");
+  const conn = new phidget22.NetworkConnection(5661, ipManikinModule);
 
   conn
     .connect()
@@ -102,6 +158,13 @@ const connect = function () {
 
       airwayPresSensor.onSensorChange = (sensorValue) => {
         airway_pressure = sensorValue * 10.1972; // convert kPa to cmH2O
+        if (airway_pressure > temp_max_pressure) {
+          temp_max_pressure = airway_pressure;
+        }
+        if (airway_pressure < temp_min_pressure) {
+          temp_min_pressure = airway_pressure;
+        }
+
         switch (airway_override) {
           case 0: // automatic mode
             if (
@@ -140,10 +203,22 @@ const connect = function () {
 
       stomachPresSensor.onSensorChange = (sensorValue) => {
         stomach_pressure = sensorValue * 10.1972; // convert kPa to cmH2o
+        if (stomach_pressure > temp_max_abd) {
+          temp_max_abd = stomach_pressure;
+        }
+        if (stomach_pressure < temp_min_abd) {
+          temp_min_abd = stomach_pressure;
+        }
       };
 
       compPresSensor.onSensorChange = (sensorValue) => {
         comp_pressure = sensorValue;
+        if (comp_pressure > temp_max_comp) {
+          temp_max_comp = comp_pressure;
+        }
+        if (comp_pressure < temp_min_comp) {
+          temp_min_comp = comp_pressure;
+        }
       };
 
       gyroSensor.onAngularRateUpdate = (angularRate, timestamp) => {
@@ -166,25 +241,45 @@ const connect = function () {
         }
       };
 
-      // first connect the airway sensor
+      // connect the airway pressure sensor
       airwayPresSensor.open(2000).then(() => {
+        console.log("Airway pressure sensor online.");
         airwayPresSensor.setSensorType(
           phidget22.VoltageRatioSensorType.PN_1137
         ); //+-7kPa sensor 1137
         airwayPresSensor.setDataInterval(50);
+
+        // start the pressure reporter
+        setInterval(reportPressures, reporterInterval);
       });
+
+      // connect the stomach pressure sensor
       stomachPresSensor.open(2000).then(() => {
+        console.log("Stomach pressure sensor online.");
         stomachPresSensor.setSensorType(
           phidget22.VoltageRatioSensorType.PN_1137
         );
-        stomachPresSensor.setDataInterval(150);
+        stomachPresSensor.setDataInterval(50);
       });
+
+      // connect the compression pressure sensor
       compPresSensor.open(2000).then(() => {
+        console.log("Compressions pressure sensor online.");
         compPresSensor.setSensorType(phidget22.VoltageRatioSensorType.PN_1131); // Thinforce sensor
         compPresSensor.setDataInterval(50);
       });
-      gyroSensor.open(2000);
-      accSensor.open(2000);
+
+      // connect the gyro sensor
+      gyroSensor.open(2000).then(() => {
+        gyroSensor.setDataInterval(100);
+        console.log("Head gyro sensor online.");
+      });
+
+      // connect the acceleration sensor
+      accSensor.open(2000).then(() => {
+        accSensor.setDataInterval(100);
+        console.log("Head acceleration sensor online.");
+      });
     })
     .catch(() => console.log("Manikin connection failed!"));
 };
@@ -214,9 +309,8 @@ const setSpontBreathing = function (spont_resp_rate) {
 const spontInspiration = function () {
   if (!spont_respiration_blocked) {
     // start inspiration on the manikin by sending the A command to the Teensy
-    //writeTeensyCommand("A");
+    parentPort.postMessage({ command: "spont_insp", param: {} });
     // play the breath inspiration sound
-    parentPort.postMessage("spont_insp");
     playSoundService.postMessage({
       command: "breath",
       type: inspiration_sound,
@@ -228,7 +322,7 @@ const spontInspiration = function () {
 const spontExpiration = function () {
   if (!spont_respiration_blocked) {
     // start the expiration on the manikin by sending the B command to the Teensy
-    //writeTeensyCommand("B");
+    parentPort.postMessage({ command: "spont_exp", param: {} });
     // play the breath expiration sound
     switch (expiration_sound_type) {
       case 0: // normal breath sound
@@ -267,9 +361,8 @@ const spontExpiration = function () {
 const artInspiration = _.debounce(function () {
   spont_respiration_blocked = true;
   // start inspiration on the manikin by sending the A command to the Teensy
-  //writeTeensyCommand("C");
+  parentPort.postMessage({ command: "art_insp", param: {} });
   // play the breath inspiration sound
-  parentPort.postMessage("art_insp");
   playSoundService.postMessage({
     command: "breath",
     type: inspiration_sound,
@@ -281,9 +374,8 @@ const artExpiration = _.debounce(function () {
   // unblock spontaneous breathing
   spont_respiration_blocked = false;
   // start the expiration on the manikin by sending the B command to the Teensy
-  //writeTeensyCommand("B");
+  parentPort.postMessage({ command: "art_exp", param: {} });
   // play the breath expiration sound
-  parentPort.postMessage("art_exp");
   playSoundService.postMessage({
     command: "breath",
     type: expiration_sound,

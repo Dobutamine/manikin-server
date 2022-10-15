@@ -11,6 +11,17 @@ const manikin_server_port = 3001;
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+let performanceData = {
+  pip: 0,
+  peep: 0,
+  aw: 0,
+  ap: false,
+  pip_abd: 0,
+  peep_abd: 0,
+  comp_pres: 0,
+  comp_release: 0,
+};
+
 const status = {
   target: "status",
   message: "",
@@ -214,7 +225,7 @@ manikin.postMessage({ command: "connect", param: 0 });
 
 // attach an event handler to catch messages from manikin worker process
 manikin.on("message", (message) => {
-  switch (message) {
+  switch (message.command) {
     case "art_insp":
       breathing.postMessage({ command: "art_insp", param: 0 });
       break;
@@ -226,6 +237,10 @@ manikin.on("message", (message) => {
       break;
     case "spont_exp":
       breathing.postMessage({ command: "spont_exp", param: 0 });
+      break;
+    case "status":
+      performanceData = message.param;
+      console.log(performanceData);
       break;
   }
 });
@@ -244,6 +259,6 @@ breathing.on("message", (message) => {
 // Spin up the server
 server.listen(manikin_server_port, () => {
   console.log(
-    `Webserver listening on address: ${current_ip} port: ${manikin_server_port}`
+    `NeoSIM hardware listening on address: ${current_ip} port: ${manikin_server_port}`
   );
 });

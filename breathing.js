@@ -44,36 +44,27 @@ const connect = function () {
       stomach.setIsHubPortDevice(false);
       stomach.setHubPort(breathingRelayPort);
       stomach.setChannel(0);
-      stomach.onAttach = function () {
-        console.log("stomach valve ready!");
-      };
 
       // instantiate the left lung valve
       leftLung = new phidget22.DigitalOutput();
       leftLung.setIsHubPortDevice(false);
       leftLung.setHubPort(breathingRelayPort);
       leftLung.setChannel(1);
-      leftLung.onAttach = function () {
-        console.log("left lung valve ready!");
-      };
 
       // instantiate the left lung valve
       rightLung = new phidget22.DigitalOutput();
       rightLung.setIsHubPortDevice(false);
       rightLung.setHubPort(breathingRelayPort);
       rightLung.setChannel(2);
-      rightLung.onAttach = function () {
-        console.log("right lung valve ready!");
-      };
 
       stomach.open(2000).then(() => {
-        console.log("stomach valve channel opened!");
+        console.log("Stomach valve online.");
       });
       leftLung.open(2000).then(() => {
-        console.log("left lung valve channel opened!");
+        console.log("Left lung valve online.");
       });
       rightLung.open(2000).then(() => {
-        console.log("right lung valve channel opened!");
+        console.log("Right lung valve online.");
       });
     })
     .catch(() => console.log("Breathing module connection failed!"));
