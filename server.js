@@ -214,12 +214,36 @@ manikin.postMessage({ command: "connect", param: 0 });
 
 // attach an event handler to catch messages from manikin worker process
 manikin.on("message", (message) => {
+  switch (message) {
+    case "art_insp":
+      breathing.postMessage({ command: "art_insp", param: 0 });
+      break;
+    case "art_exp":
+      breathing.postMessage({ command: "art_exp", param: 0 });
+      break;
+    case "spont_insp":
+      breathing.postMessage({ command: "spont_insp", param: 0 });
+      break;
+    case "spont_exp":
+      breathing.postMessage({ command: "spont_exp", param: 0 });
+      break;
+  }
+});
+
+// define a breathing module service
+const breathing = new Worker("./breathing.js");
+
+// connect to the breathing module
+breathing.postMessage({ command: "connect", param: 0 });
+
+// attach an event handler to catch messages from manikin worker process
+breathing.on("message", (message) => {
   console.log(message);
 });
 
 // Spin up the server
 server.listen(manikin_server_port, () => {
   console.log(
-    `Manikin webserver listening on address: ${current_ip} port: ${manikin_server_port}`
+    `Webserver listening on address: ${current_ip} port: ${manikin_server_port}`
   );
 });
