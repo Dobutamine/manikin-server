@@ -281,7 +281,10 @@ const connect = function () {
         console.log("Head acceleration sensor online.");
       });
     })
-    .catch(() => console.log("Manikin connection failed!"));
+    .catch(() => {
+      console.log("Manikin connection failed! Reconnecting....");
+      connect();
+    });
 };
 
 const setAirwayOverride = function (setting) {

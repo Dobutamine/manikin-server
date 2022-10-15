@@ -11,7 +11,7 @@ const manikin_server_port = 3001;
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-let performanceData = {
+const performanceData = {
   pip: 0,
   peep: 0,
   aw: 0,
@@ -22,13 +22,12 @@ let performanceData = {
   comp_release: 0,
 };
 
-const status = {
-  target: "status",
-  message: "",
+const statusData = {
+  manikin: false,
+  breathing: false,
 };
 
 const vitals = {
-  target: "vitals",
   hr: 130,
   spo2_pre: 97,
   spo2_post: 95,
@@ -38,7 +37,6 @@ const vitals = {
   temp: 37.0,
   etco2: 4.5,
   pfi: 1.6,
-  configChange: true,
 };
 
 const mon_config = {
@@ -91,10 +89,8 @@ wss.on("connection", (ws) => {
     const message = JSON.parse(json_mes);
     handleWebsocketCommands(ws, message);
   });
-  console.log(`New connection accepted!`);
-  let message = {};
-  status.message = "Hi from the manikin server";
-  ws.send(JSON.stringify(status));
+  console.log(`New websocket connection accepted!`);
+  ws.send("Ok");
 });
 
 handleWebsocketCommands = (ws, message) => {
@@ -240,7 +236,6 @@ manikin.on("message", (message) => {
       break;
     case "status":
       performanceData = message.param;
-      console.log(performanceData);
       break;
   }
 });
@@ -256,9 +251,67 @@ breathing.on("message", (message) => {
   console.log(message);
 });
 
+// post requests
+app.post("/vitals", (req, res) => {
+  console.log("Received vitals update.");
+});
+
+app.post("/labs", (req, res) => {
+  console.log("Received labs update.");
+});
+
+app.post("/media", (req, res) => {
+  console.log("Received media update.");
+});
+
+app.post("/mon_config", (req, res) => {
+  console.log("Received mon_config update.");
+});
+
+app.post("/manikin", (req, res) => {
+  console.log("Received manikin module update.");
+  res.send("Ok");
+});
+
+app.post("/breathing", (req, res) => {
+  console.log("Received breathing module update.");
+  res.send("Ok");
+});
+
+// get requests
+app.get("/vitals", (req, res) => {
+  console.log("Received vitals request.");
+  res.send(vitals);
+});
+
+app.get("/labs", (req, res) => {
+  console.log("Received labs request.");
+  res.send(labs);
+});
+
+app.get("/media", (req, res) => {
+  console.log("Received media request.");
+  res.send(media);
+});
+
+app.get("/mon_config", (req, res) => {
+  console.log("Received mon config request.");
+  res.send(mon_config);
+});
+
+app.get("/performance", (req, res) => {
+  console.log("Received performance request.");
+  res.send(performanceData);
+});
+
+app.get("/status", (req, res) => {
+  console.log("Received status request.");
+  res.send(statusData);
+});
+
 // Spin up the server
 server.listen(manikin_server_port, () => {
   console.log(
-    `NeoSIM hardware listening on address: ${current_ip} port: ${manikin_server_port}`
+    `NeoSIM server listening on address: ${current_ip} port: ${manikin_server_port}`
   );
 });

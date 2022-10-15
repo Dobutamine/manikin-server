@@ -16,18 +16,49 @@ parentPort.on("message", (message) => {
       connect();
       break;
     case "art_insp":
-      leftLung.setState(true);
-      rightLung.setState(true);
+      try {
+        if (leftLung) {
+          leftLung.setState(true);
+        }
+        if (rightLung) {
+          rightLung.setState(true);
+        }
+      } catch {
+        console.log("error at art insp");
+      }
+
       break;
     case "art_exp":
-      leftLung.setState(false);
-      rightLung.setState(false);
+      try {
+        if (leftLung) {
+          leftLung.setState(false);
+        }
+        if (rightLung) {
+          rightLung.setState(false);
+        }
+      } catch {
+        console.log("error at art exp");
+      }
+
       break;
     case "spont_insp":
-      stomach.setState(true);
+      try {
+        if (stomach) {
+          stomach.setState(true);
+        }
+      } catch {
+        console.log("error at spont_insp");
+      }
+
       break;
     case "spont_exp":
-      stomach.setState(false);
+      try {
+        if (stomach) {
+          stomach.setState(false);
+        }
+      } catch {
+        console.log("error at spont_exp");
+      }
       break;
   }
 });
